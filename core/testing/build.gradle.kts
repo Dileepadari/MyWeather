@@ -1,0 +1,32 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    alias(libs.plugins.weather.android.library)
+    alias(libs.plugins.weather.android.compose.library)
+}
+
+android {
+    namespace = "com.weather.core.testing"
+    buildTypes {
+
+    }
+    kotlin.compilerOptions.jvmTarget= JvmTarget.JVM_17
+}
+
+dependencies {
+    implementation(project(":core:network"))
+    implementation(project(":core:database"))
+    implementation(project(":core:design"))
+
+    api(libs.compose.ui.test)
+    api(libs.compose.ui.testManifest)
+    debugApi(libs.androidx.navigation.testing)
+    api(libs.androidx.test.core)
+    api(libs.androidx.test.core)
+    api(libs.kotlix.coroutinesTest)
+    api(libs.androidx.test.junit)
+    api(libs.junit)
+    api(libs.androidx.test.espressoCore)
+    api(libs.hilt.androidTesting)
+
+}
