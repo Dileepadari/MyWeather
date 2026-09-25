@@ -22,7 +22,6 @@ dependencies {
     api(libs.compose.ui.testManifest)
     debugApi(libs.androidx.navigation.testing)
     api(libs.androidx.test.core)
-    api(libs.androidx.test.core)
     api(libs.kotlix.coroutinesTest)
     api(libs.androidx.test.junit)
     api(libs.junit)
