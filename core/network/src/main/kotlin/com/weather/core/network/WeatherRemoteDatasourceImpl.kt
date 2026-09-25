@@ -63,12 +63,15 @@ class WeatherRemoteDatasourceImpl(
 
 	override suspend fun directGeocode(cityName: String): List<GeoSearchItem> {
 		return try {
-			ktorApi.getGeoSearch(cityName = cityName).map {
-				it.toGeoSearchItem()
-			}.getOrNull()!!
+			// getOrElse, not getOrNull()!! - the latter asks for null on failure
+			// and then throws on the null it was handed, so the empty list came
+			// back via an exception the catch below happened to cover.
+			ktorApi.getGeoSearch(cityName = cityName)
+				.map { it.toGeoSearchItem() }
+				.getOrElse { emptyList() }
 		} catch (e: Exception) {
 			Timber.e("direct geo error: ${e.message}")
-			return emptyList()
+			emptyList()
 		}
 	}
 

@@ -126,13 +126,22 @@ class WeatherRepositoryImpl @Inject constructor(
 		}
 	}
 
+	/**
+	 * Emits on every search, including the ones that found nothing.
+	 *
+	 * This used to emit only when the result was non-empty, and the catch block
+	 * swallowed failures without emitting either. The consumer collects through
+	 * flatMapLatest into a stateIn, so a query with no matches produced no new
+	 * value and the state held whatever the *previous* query returned: you typed
+	 * something else and kept looking at the old city's results, with no way to
+	 * tell that from a search still in flight.
+	 */
 	override fun searchLocation(cityName: String): Flow<List<GeoSearchItem>> =
 		flow {
-			val remoteData = remoteWeather.directGeocode(cityName = cityName)
-			if (remoteData.isNotEmpty())
-				emit(remoteData)
+			emit(remoteWeather.directGeocode(cityName = cityName))
 		}.catch {
 			Timber.e("search error: ${it.message}")
+			emit(emptyList())
 		}
 
 }

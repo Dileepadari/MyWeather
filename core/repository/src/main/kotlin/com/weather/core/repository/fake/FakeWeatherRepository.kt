@@ -13,8 +13,14 @@ class FakeWeatherRepository : WeatherRepository {
         TODO("Not yet implemented")
     }
 
-    override fun searchLocation(cityName: String): Flow<List<GeoSearchItem>> {
-        TODO("Not yet implemented")
+    /**
+     * Results the next search will return. Set it to an empty list to stand in
+     * for "found nothing", which is the case that used to emit nothing at all.
+     */
+    var searchResults: List<GeoSearchItem> = emptyList()
+
+    override fun searchLocation(cityName: String): Flow<List<GeoSearchItem>> = flow {
+        emit(searchResults)
     }
 
     override suspend fun syncWeather(coordinate: Coordinate) {
