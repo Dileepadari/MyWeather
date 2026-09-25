@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and unit test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Gradle daemon provisions its own JDK 21 from
+      # gradle/gradle-daemon-jvm.properties, and the project toolchain (17) is
+      # downloaded by the foojay resolver configured in settings.gradle.kts.
+      # This only needs a JVM to launch the wrapper.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Assemble the debug APK
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Unit tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew --no-daemon lintDebug
+
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            **/build/reports/
+          if-no-files-found: ignore
+
+  hygiene:
+    name: Plain ASCII and no tracked build output
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No em dashes, emoji or arrows in tracked files
+        run: |
+          if git ls-files -z -- ':!*.png' ':!*.jpg' ':!*.webp' ':!*.json' | xargs -0 grep -nP \
+            '[\x{2013}\x{2014}\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{2190}-\x{21FF}\x{2B00}-\x{2BFF}]' \
+            --binary-files=without-match; then
+            echo "Found a forbidden character above."
+            exit 1
+          fi
+          echo "clean"
+
+      - name: No entity or escape forms of the same characters
+        run: |
+          if git ls-files -z -- ':!*.png' ':!*.jpg' ':!*.webp' | xargs -0 grep -nP \
+            '&(mdash|ndash|rarr|larr|harr|rArr|lArr|#821[123469]|#x201[34]|#8594|#8592|#x219[02]);' \
+            --binary-files=without-match; then
+            echo "Found an entity that renders as a forbidden character."
+            exit 1
+          fi
+          echo "clean"
+
+      - name: No build output or logs tracked
+        run: |
+          if git ls-files | grep -E '(^|/)(build|\.gradle|\.cxx)/|\.log$|local\.properties$'; then
+            echo "Tracked path that should not be in the repository."
+            exit 1
+          fi
+          echo "clean"
+
+      # The project toolchain is downloaded rather than assumed present. Without
+      # this plugin the build configures fine and then fails at the first Java
+      # compile on any machine with no JDK 17 installed.
+      - name: The toolchain can be provisioned
+        run: |
+          grep -q 'foojay-resolver' settings.gradle.kts || {
+            echo "settings.gradle.kts no longer configures a toolchain repository"
+            exit 1
+          }
+          echo "clean"
+
+  readme-images:
+    name: Every README image exists
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Referenced screenshots are present
+        run: |
+          missing=0
+          for f in README.md; do
+            [ -f "$f" ] || continue
+            while read -r path; do
+              [ -z "$path" ] && continue
+              if [ ! -f "$path" ]; then
+                echo "$f references a missing file: $path"
+                missing=1
+              fi
+            done < <(grep -oE '(screenshots|docs/screenshots)/[A-Za-z0-9/._-]+' "$f" | sort -u)
+          done
+          exit "$missing"
