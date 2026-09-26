@@ -25,7 +25,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,24 +48,35 @@ fun SettingsRoute(
     var tempUnit by remember {
         mutableStateOf("")
     }
-    val context = LocalContext.current
     var windUnit by remember {
         mutableStateOf("")
     }
+
+    // Read through stringResource rather than LocalContext.current.getString.
+    // The context one is not configuration-aware: Compose lint flags it as
+    // LocalContextGetResourceValueCall because a string pulled that way does
+    // not follow a locale change. Resolved here, outside the effect, because
+    // stringResource is composable and LaunchedEffect's body is not.
+    val celsiusSymbol = stringResource(R.string.celsius_symbol)
+    val fahrenheitSymbol = stringResource(R.string.fahrenheit_symbol)
+    val kilometersPerHour = stringResource(R.string.kilometer_per_hour)
+    val metersPerSecond = stringResource(R.string.meters_per_second)
+    val milesPerHour = stringResource(R.string.miles_per_hour)
+
     LaunchedEffect(key1 = settingsUIState) {
         when (settingsUIState) {
             is SettingsUIState.Success -> {
                 tempUnit =
                     when ((settingsUIState as SettingsUIState.Success).settingsData.temperatureUnits) {
-                        TemperatureUnits.C -> context.getString(R.string.celsius_symbol)
-                        TemperatureUnits.F -> context.getString(R.string.fahrenheit_symbol)
+                        TemperatureUnits.C -> celsiusSymbol
+                        TemperatureUnits.F -> fahrenheitSymbol
                         else -> ""
                     }
                 windUnit =
                     when ((settingsUIState as SettingsUIState.Success).settingsData.windSpeedUnits) {
-                        WindSpeedUnits.KM -> context.getString(R.string.kilometer_per_hour)
-                        WindSpeedUnits.MS -> context.getString(R.string.meters_per_second)
-                        WindSpeedUnits.MPH -> context.getString(R.string.miles_per_hour)
+                        WindSpeedUnits.KM -> kilometersPerHour
+                        WindSpeedUnits.MS -> metersPerSecond
+                        WindSpeedUnits.MPH -> milesPerHour
                         else -> ""
                     }
             }
