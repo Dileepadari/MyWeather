@@ -143,6 +143,15 @@ Compose test artifacts.
 `core:repository` ships fakes (`FakeWeatherRepository`, `FakeUserRepository`) that features use
 in their own tests.
 
+**`testDebugUnitTest` had never run before this pass.** `core:testing` exposes the Compose test
+artifacts with `api()`, and their catalogue entries deliberately carry no version because the
+Compose BOM is meant to supply it - but the BOM was only added to `implementation` and
+`androidTestImplementation` by the compose convention plugin, and the modules consuming
+`core:testing` on their unit test classpath apply the plain library plugin. Every one of them
+failed to resolve with `Could not find androidx.compose.ui:ui-test-junit4:`, an empty version.
+The BOM is declared alongside the dependencies in `core:testing` now, so it travels with them.
+Seven tests across five modules run today.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml`, on push, pull request and `workflow_dispatch`. No schedule.
@@ -166,6 +175,13 @@ in their own tests.
 - **Module builds go through the convention plugins.** Add shared configuration in `build-logic`,
   not by copying blocks between `build.gradle.kts` files.
 - **`core:model` is pure Kotlin types.** Nothing in it should import Android or Ktor.
+- **A versionless catalogue entry needs its BOM on every configuration that sees it.** Declaring
+  the BOM next to the dependency, with `api(platform(...))`, is what makes the version travel to
+  a consumer; adding it in a convention plugin only covers modules that apply that plugin.
+- **Read resources with `stringResource`, not `LocalContext.current.getString`.** Compose lint
+  fails the build on it (`LocalContextGetResourceValueCall`) because a string read that way does
+  not follow a locale change. `stringResource` is composable, so resolve the values outside any
+  `LaunchedEffect` and use them inside.
 - **Do not set `org.gradle.java.home`.** The toolchain machinery exists precisely so no path is
   hard-coded; a sibling repo in this collection was unbuildable for exactly that reason.
 
@@ -180,6 +196,8 @@ in their own tests.
   there is no emulator here.
 - **Detekt and Kotlinter are configured but not run in CI.** The config exists; wiring
   `./gradlew detekt` into the build job is a small change once the baseline is known to be clean.
+- **Seven unit tests is not much** for a project this size. They pass and they now run, which is
+  the change that matters; the coverage they give is thin.
 
 ---
 

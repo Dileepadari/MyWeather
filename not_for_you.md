@@ -112,6 +112,36 @@ Two things bit me putting it in: `settings.gradle.kts` requires `pluginManagemen
 would not have configured at all. And while I was in there, `include(":feature:settings")`
 appeared twice - harmless, Gradle dedupes, but it is still a line that says something untrue.
 
+## Two things only CI could tell me
+
+I could not build this locally, so the first push was also the first compile. Both of these came
+back from CI, and both were worth having.
+
+**`testDebugUnitTest` had never run.** Not "was failing" - had never run:
+
+```
+Could not find androidx.compose.ui:ui-test-junit4:.
+```
+
+Note the empty version. `core:testing` exposes the Compose test artifacts with `api()` and the
+catalogue gives them no version, because the Compose BOM supplies it. But the convention plugin
+added the BOM to `implementation` and `androidTestImplementation` only, and the modules pulling
+`core:testing` onto their *unit test* classpath - `core:common`, the features - apply the plain
+library plugin, which never runs that code.
+
+My first fix added `testImplementation` to the convention plugin. It did not work, for exactly
+the reason above: `core:common` does not apply the compose plugin at all. The fix that works puts
+`api(platform(libs.compose.bom))` in `core:testing`, next to the dependencies it versions, so the
+constraint travels with them to any consumer on any configuration. Seven tests across five
+modules run now.
+
+**A lint error had been sitting in `feature/settings`.** `LocalContextGetResourceValueCall`:
+reading a string through `LocalContext.current.getString` rather than `stringResource`. That one
+is a real defect and not just a style rule - a string read that way does not follow a locale
+change, so the temperature and wind-speed symbols would keep the old language until the screen
+was rebuilt. `stringResource` is composable and `LaunchedEffect`'s body is not, so the values are
+resolved just above the effect and used inside it.
+
 ## The README, again
 
 Same call as Foodie: the badge block is good and stays, the emoji headings and the arrow glyph go,
